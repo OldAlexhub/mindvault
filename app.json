@@ -1,4 +1,7 @@
 {
   "name": "mindvault",
-  "displayName": "mindvault"
+  "displayName": "MindVault",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-7831002909037560~9376774674"
+  }
 }

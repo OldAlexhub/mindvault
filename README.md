@@ -1,97 +1,224 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# MindVault
 
-# Getting Started
+**Unlock every vault. Challenge your mind.**
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+MindVault is an IQ-style brain puzzle game for Android. It challenges your logic, memory, word skills, and pattern recognition across multiple vault modes. MindVault is entertainment software and is NOT a certified IQ test, a professional cognitive assessment, or a clinical intelligence measurement tool.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- Four Vault Modes: Logic, Memory, Word, and Pattern puzzles
+- Daily Vault with a fresh challenge that resets every 24 hours
+- Local scoring and streak tracking (stored on device, never uploaded)
+- Unlockable themes earned through gameplay
+- Result sharing via the Android share sheet (user-initiated only)
+- No account required, no login, no backend server
+- Core gameplay works offline
+- Banner ads via Google AdMob (no interstitials or rewarded ads in v1)
 
-```sh
-# Using npm
+---
+
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Framework | Bare React Native (TypeScript) |
+| Navigation | React Navigation |
+| Local storage | AsyncStorage |
+| Ads | react-native-google-mobile-ads |
+| Build tool | Gradle (Android) |
+| Language | TypeScript |
+
+---
+
+## AdMob Configuration
+
+| Item | Value |
+|---|---|
+| AdMob App ID | ca-app-pub-7831002909037560~9376774674 |
+| Banner Ad Unit ID | ca-app-pub-7831002909037560/6489618814 |
+| Publisher ID | pub-7831002909037560 |
+| app-ads.txt seller line | google.com, pub-7831002909037560, DIRECT, f08c47fec0942fa0 |
+
+All AdMob configuration is centralized in `src/config/admob.ts`.
+
+### Debug vs. Production Ads
+
+- Debug builds (`__DEV__ === true`): Google's official test banner ID is used automatically. Test ads generate no revenue.
+- Production / release builds (`__DEV__ === false`): The production banner ad unit ID above is used automatically.
+
+No manual changes are needed when switching between debug and release. The `getBannerAdUnitId()` function in `src/config/admob.ts` handles this automatically.
+
+---
+
+## app-ads.txt
+
+The app-ads.txt seller line for this app is:
+
+```
+google.com, pub-7831002909037560, DIRECT, f08c47fec0942fa0
+```
+
+**Important:** app-ads.txt is NOT bundled inside the APK. It is a plain text file that must be hosted at the root of your developer website domain:
+
+```
+https://[your-developer-website]/app-ads.txt
+```
+
+The developer website URL must match the website in your Google Play Console developer profile. See `store_assets/app-ads-txt-notes.md` for full setup instructions.
+
+---
+
+## Social Sharing
+
+MindVault allows users to share puzzle results using the Android system share sheet. Sharing is entirely user-initiated and only occurs when the user taps the Share button. The app does not auto-share, upload, or transmit results to any server.
+
+---
+
+## No Login, No Backend
+
+MindVault has no backend server, no API login, no cloud sync, and no user accounts. All app data is stored locally on the device using AsyncStorage.
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+- Node.js 18 or later
+- Android Studio with Android SDK
+- JDK 17 (Android Studio bundled JDK is recommended)
+- React Native CLI environment set up per the official React Native docs
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### Start Metro (Development)
+
+```bash
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+### Run on Android (Development)
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+```bash
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+### Build Release APK
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+cd android
+./gradlew assembleRelease
 ```
 
-Then, and every time you update your native dependencies, run:
+Output: `android/app/build/outputs/apk/release/app-release.apk`
 
-```sh
-bundle exec pod install
+### Build Release AAB (for Play Store upload)
+
+```bash
+cd android
+./gradlew bundleRelease
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Output: `android/app/build/outputs/bundle/release/app-release.aab`
 
-```sh
-# Using npm
-npm run ios
+---
 
-# OR using Yarn
-yarn ios
+## release.py: Release Automation Script
+
+The `release.py` script automates the full release process. It requires only Python 3 and the Python standard library (no pip installs needed).
+
+### Usage
+
+```bash
+# Full build: check env, sign, build APK + AAB, copy artifacts, print summary
+python release.py
+
+# Skip Gradle build, just copy existing artifacts and store assets
+python release.py --skip-build
+
+# Print environment check and exit (no build)
+python release.py --check-env
+
+# Generate signing keystore only, then exit
+python release.py --generate-key-only
+
+# Clean Gradle before building
+python release.py --clean
+
+# Skip Gradle clean before building
+python release.py --no-clean
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### What release.py does
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+1. Locates the project directory
+2. Finds and configures JAVA_HOME and keytool
+3. Finds and configures the Android SDK and writes android/local.properties
+4. Prepares the signing keystore (generates one with strong random passwords if it does not exist)
+5. Verifies AdMob configuration in src/config/admob.ts
+6. Runs Gradle assembleRelease and bundleRelease
+7. Copies the APK and AAB to releases/builds/v1.0.0/
+8. Copies store assets to releases/store-assets/
+9. Prints a final summary with all artifact paths and reminders
 
-## Step 3: Modify your app
+### Signing Keystore
 
-Now that you have successfully run the app, let's make changes!
+The release keystore is stored at:
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```
+android/keystore/mindvault-release.keystore
+```
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Keystore properties are stored at:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+```
+android/keystore/keystore.properties
+```
 
-## Congratulations! :tada:
+Both files are excluded from version control via .gitignore. Back up the keystore and its passwords securely. Loss of the keystore means you cannot update the app on Google Play.
 
-You've successfully run and modified your React Native App. :partying_face:
+---
 
-### Now what?
+## Store Assets
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+All Google Play Store listing files are in `mindvault/store_assets/`:
 
-# Troubleshooting
+| File | Purpose |
+|---|---|
+| store-listing.md | Full store listing reference document |
+| short-description.txt | Play Store short description (80 char max) |
+| full-description.txt | Play Store full description |
+| promo-text.txt | Optional promotional text |
+| release-notes.txt | What's new / release notes for v1.0.0 |
+| screenshot-captions.txt | Captions for 8 app screenshots |
+| privacy-summary.txt | Short privacy summary for Play Console |
+| feature-graphic-notes.md | Design notes for 1024x500 feature graphic |
+| app-ads-txt-notes.md | Full app-ads.txt setup guide |
+| admob-setup-notes.md | AdMob setup and policy reference |
+| data-safety-notes.md | Data safety form guidance for Play Console |
+| play-console-checklist.md | Step-by-step Play Console release checklist |
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Release artifacts are copied to:
 
-# Learn More
+```
+releases/builds/v1.0.0/
+releases/store-assets/
+```
 
-To learn more about React Native, take a look at the following resources:
+---
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Privacy Policy
+
+The full privacy policy is in `PRIVACYPOLICY.md`. It must be hosted at a public URL before submitting the app to Google Play. The contact email is oldalexhub@gmail.com.
+
+---
+
+## License
+
+[License placeholder - add your chosen license here]

@@ -1,0 +1,15 @@
+Version 1.0.0 - First Release
+
+MindVault is now available on Google Play.
+
+This first release includes:
+
+- Four Vault Modes: Logic, Memory, Word, and Pattern puzzles
+- Daily Vault with a fresh challenge every 24 hours
+- Local scoring and streak tracking (stored on your device, no login required)
+- Multiple unlockable themes
+- Result sharing via the Android share sheet
+- Offline core gameplay
+- Banner ads via Google AdMob
+
+Thank you for playing MindVault. Feedback and reviews are welcome.

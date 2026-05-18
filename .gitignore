@@ -35,6 +35,11 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# MindVault signing
+android/keystore/*.keystore
+android/keystore/keystore.properties
+android/local.properties
+
 # node.js
 #
 node_modules/
