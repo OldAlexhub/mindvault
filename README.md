@@ -215,10 +215,10 @@ releases/store-assets/
 
 ## Privacy Policy
 
-The full privacy policy is in `PRIVACYPOLICY.md`. It must be hosted at a public URL before submitting the app to Google Play. The contact email is oldalexhub@gmail.com.
+The full privacy policy is in `PRIVACYPOLICY.md`. It must be hosted at a public URL before submitting the app to Google Play. The contact email is info@oldalexhub.com.
 
 ---
 
 ## License
 
-[License placeholder - add your chosen license here]
+All rights reserved. This software and its source code are proprietary to Old Alex Hub. No part of this project may be reproduced, distributed, modified, or used in any form without explicit written permission from the author.
