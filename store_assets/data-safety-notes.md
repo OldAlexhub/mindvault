@@ -24,7 +24,7 @@
 
 | Permission | Used For |
 |---|---|
-| INTERNET | AdMob banner ads; optional public puzzle data refresh (Datamuse API, REST Countries API) |
+| INTERNET | AdMob banner ads; public puzzle data refresh (Datamuse API, REST Countries API, Open Trivia Database, Free Dictionary API, World Bank Indicators API) |
 
 Permissions NOT present in this app:
 
@@ -92,7 +92,7 @@ Users can delete all local data by:
 All network communications in MindVault use HTTPS:
 
 - AdMob ad requests: HTTPS
-- Optional public API calls (Datamuse API, REST Countries API): HTTPS
+- Public API calls (Datamuse API, REST Countries API, Open Trivia Database, Free Dictionary API, World Bank Indicators API): HTTPS
 
 ---
 

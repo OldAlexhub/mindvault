@@ -56,8 +56,8 @@ MindVault requests the INTERNET permission for two purposes:
 **1. AdMob Banner Ads**
 MindVault displays banner advertisements served by Google AdMob (Google Mobile Ads SDK). These ads require an internet connection. The Google Mobile Ads SDK may process advertising identifiers (such as the Android Advertising ID) and diagnostic data in accordance with Google's own privacy policy. This data collection is governed by Google, not by Old Alex Hub.
 
-**2. Optional Public Puzzle Data Refresh**
-Some puzzle content may be refreshed by making read-only calls to public, unauthenticated APIs including the Datamuse API (word data) and the REST Countries API (country data). These calls do not include any personal information, device identifiers, or user data. They are purely read operations that fetch publicly available reference data.
+**2. Public Puzzle Data Refresh**
+Some puzzle content may be refreshed by making read-only calls to public, unauthenticated APIs including the Datamuse API, REST Countries API, Open Trivia Database, Free Dictionary API, and World Bank Indicators API. These calls do not include any personal information, device identifiers, or user data. They are purely read operations that fetch publicly available reference data and cache it locally for gameplay.
 
 ---
 
@@ -84,7 +84,7 @@ MindVault requests only the following permission:
 
 | Permission | Reason |
 |---|---|
-| INTERNET | Required for AdMob banner ads and optional public API data refresh |
+| INTERNET | Required for AdMob banner ads and public API data refresh |
 
 MindVault does NOT request the following permissions:
 

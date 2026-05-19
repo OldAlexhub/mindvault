@@ -53,7 +53,7 @@ const POLICY_SECTIONS: PolicySection[] = [
   {
     title: 'Internet Permission',
     content:
-      'MindVault requests internet access for two purposes only: (1) to display banner advertisements served by Google AdMob, and (2) to optionally refresh word and world puzzle data from public APIs (Datamuse and REST Countries). Puzzle data refresh is entirely optional and user-initiated. The app is fully playable without an internet connection using bundled puzzle data.',
+      'MindVault requests internet access for two purposes only: (1) to display banner advertisements served by Google AdMob, and (2) to refresh puzzle source data from public read-only APIs, including Datamuse, REST Countries, Open Trivia Database, Free Dictionary API, and World Bank Indicators API. The app caches this public data locally and remains playable without an internet connection using bundled puzzle data.',
   },
   {
     title: 'Advertising (Google AdMob)',

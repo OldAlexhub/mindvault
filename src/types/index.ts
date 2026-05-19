@@ -2,8 +2,16 @@ export type VaultType = 'quick' | 'pattern' | 'number' | 'memory' | 'word' | 'wo
 export type TimerMode = 'relaxed' | 'standard' | 'rush';
 export type ThemeId = 'classic' | 'neon' | 'cyber' | 'ancient' | 'midnight';
 export type VaultRank = 'Bronze Key' | 'Silver Key' | 'Gold Key' | 'Master Cracker' | 'Vault Legend';
-export type PuzzleType = 'pattern' | 'number' | 'memory' | 'logic' | 'word' | 'world';
-export type DataSource = 'bundled' | 'datamuse' | 'restcountries';
+export type PuzzleType = 'pattern' | 'number' | 'memory' | 'logic' | 'word' | 'world' | 'trivia';
+export type DataSource =
+  | 'bundled'
+  | 'datamuse'
+  | 'restcountries'
+  | 'free-dictionary'
+  | 'opentdb'
+  | 'worldbank'
+  | 'mixed-word'
+  | 'mixed-world';
 
 export interface AppSettings {
   soundEnabled: boolean;
@@ -95,6 +103,7 @@ export interface CachedWordData {
   refreshedAt: string;
   words: string[];
   relationships: WordRelationship[];
+  definitions?: WordDefinition[];
 }
 
 export interface WordRelationship {
@@ -103,8 +112,17 @@ export interface WordRelationship {
   type: 'synonym' | 'antonym' | 'association';
 }
 
+export interface WordDefinition {
+  word: string;
+  definition: string;
+  partOfSpeech?: string;
+  synonyms: string[];
+  antonyms: string[];
+}
+
 export interface Country {
   name: string;
+  countryCode?: string;
   capital: string;
   region: string;
   population: number;
@@ -115,6 +133,31 @@ export interface CachedWorldData {
   source: DataSource;
   refreshedAt: string;
   countries: Country[];
+  economicIndicators?: EconomicIndicator[];
+}
+
+export interface EconomicIndicator {
+  countryName: string;
+  countryCode: string;
+  indicatorCode: string;
+  indicatorName: string;
+  year: string;
+  value: number;
+  unit?: string;
+}
+
+export interface CachedTriviaData {
+  source: DataSource;
+  refreshedAt: string;
+  questions: TriviaQuestion[];
+}
+
+export interface TriviaQuestion {
+  category: string;
+  difficulty: string;
+  question: string;
+  correctAnswer: string;
+  incorrectAnswers: string[];
 }
 
 export interface Puzzle {

@@ -13,6 +13,7 @@ export const KEYS = {
   THEMES: 'mindvault:themes',
   CACHE_WORDS: 'mindvault:cache:words',
   CACHE_WORLD: 'mindvault:cache:world',
+  CACHE_TRIVIA: 'mindvault:cache:trivia',
   ONBOARDING: 'mindvault:onboarding',
 } as const;
 

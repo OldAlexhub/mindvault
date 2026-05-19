@@ -15,7 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AdBanner } from '../components/AdBanner';
 import { getSettings, saveSettings, getStats, getDailyProgress, getAttempts, getThemeUnlocks, resetAllData } from '../storage/storage';
 import { getTheme } from '../theme';
-import { refreshWordData, refreshWorldData } from '../services/publicDataRefresh';
+import { refreshTriviaData, refreshWordData, refreshWorldData } from '../services/publicDataRefresh';
 import { buildExportData, exportToJson, exportToText } from '../utils/export';
 import { formatDateDisplay } from '../utils/date';
 import type { ThemeConfig, AppSettings, TimerMode } from '../types';
@@ -84,17 +84,22 @@ export function SettingsScreen(): React.ReactElement {
     setRefreshBusy(true);
     setRefreshStatus('Refreshing...');
     try {
-      const [wordResult, worldResult] = await Promise.all([
+      const [wordResult, worldResult, triviaResult] = await Promise.all([
         refreshWordData(),
         refreshWorldData(),
+        refreshTriviaData(),
       ]);
-      if (wordResult.success && worldResult.success) {
+      if (wordResult.success && worldResult.success && triviaResult.success) {
         setRefreshStatus('Data refreshed successfully!');
         if (settings) {
           await updateSetting('lastDataRefreshAt', new Date().toISOString());
         }
       } else {
-        const msg = !wordResult.success ? wordResult.message : worldResult.message;
+        const msg = !wordResult.success
+          ? wordResult.message
+          : !worldResult.success
+            ? worldResult.message
+            : triviaResult.message;
         setRefreshStatus(`Refresh partially failed: ${msg}`);
       }
     } catch {
@@ -275,6 +280,7 @@ export function SettingsScreen(): React.ReactElement {
             <View style={styles.rowLabel}>
               <Text style={styles.rowTitle}>Refresh Puzzle Data</Text>
               <Text style={styles.rowDesc}>Last refreshed: {lastRefreshDate}</Text>
+              <Text style={styles.rowDesc}>Sources: Datamuse, REST Countries, Open Trivia, Dictionary, World Bank</Text>
               {refreshStatus !== '' && (
                 <Text style={[
                   styles.refreshStatus,

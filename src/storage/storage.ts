@@ -7,6 +7,7 @@ import type {
   ThemeUnlocks,
   CachedWordData,
   CachedWorldData,
+  CachedTriviaData,
   VaultProgress,
 } from '../types';
 import {
@@ -269,6 +270,24 @@ export async function saveCachedWorldData(data: CachedWorldData): Promise<boolea
   }
 }
 
+export async function getCachedTriviaData(): Promise<CachedTriviaData | null> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.CACHE_TRIVIA);
+    return safeParse<CachedTriviaData>(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCachedTriviaData(data: CachedTriviaData): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(KEYS.CACHE_TRIVIA, JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Reset / Export
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,7 +304,7 @@ export async function resetAllData(): Promise<boolean> {
 
 export async function exportAllData(): Promise<string> {
   try {
-    const [settings, stats, attempts, daily, vaultProgress, themes, wordCache, worldCache] =
+    const [settings, stats, attempts, daily, vaultProgress, themes, wordCache, worldCache, triviaCache] =
       await Promise.all([
         getSettings(),
         getStats(),
@@ -295,6 +314,7 @@ export async function exportAllData(): Promise<string> {
         getThemeUnlocks(),
         getCachedWordData(),
         getCachedWorldData(),
+        getCachedTriviaData(),
       ]);
 
     const exportPayload = {
@@ -308,6 +328,7 @@ export async function exportAllData(): Promise<string> {
       themes,
       wordCache,
       worldCache,
+      triviaCache,
     };
 
     return JSON.stringify(exportPayload, null, 2);
