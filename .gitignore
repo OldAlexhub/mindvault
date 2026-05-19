@@ -78,3 +78,6 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+releases/
+assets/
+generate_store_assets.py
