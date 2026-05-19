@@ -10,9 +10,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AdBanner } from '../components/AdBanner';
-import { getSettings, getStats } from '../storage/storage';
+import { getSettings, getVaultProgress, saveSettings } from '../storage/storage';
 import { getTheme } from '../theme';
-import type { AppStats, ThemeConfig, VaultType, ModeStats } from '../types';
+import { refreshPuzzleDataIfNeeded } from '../services/publicDataRefresh';
+import {
+  difficultyForLevel,
+  vaultDisplayName,
+  vaultTypeForLevel,
+  vaultTypeLabel,
+  visibleVaultLevels,
+} from '../game/vaultProgression';
+import type { ThemeConfig, VaultProgress } from '../types';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { VaultsStackParamList } from '../navigation';
 
@@ -29,59 +37,6 @@ const DEFAULT_COLORS = {
   success: '#4caf73',
   error: '#e05555',
 };
-
-interface VaultMode {
-  type: VaultType;
-  icon: string;
-  name: string;
-  description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-}
-
-const VAULT_MODES: VaultMode[] = [
-  {
-    type: 'quick',
-    icon: '⚡',
-    name: 'Quick Vault',
-    description: '10 mixed brain puzzles. Pattern, number, memory, word, and world.',
-    difficulty: 'Medium',
-  },
-  {
-    type: 'pattern',
-    icon: '🔷',
-    name: 'Pattern Vault',
-    description: '10 visual pattern and sequence challenges.',
-    difficulty: 'Medium',
-  },
-  {
-    type: 'number',
-    icon: '🔢',
-    name: 'Number Vault',
-    description: '10 number sequences and numeric reasoning puzzles.',
-    difficulty: 'Hard',
-  },
-  {
-    type: 'memory',
-    icon: '🧠',
-    name: 'Memory Vault',
-    description: '8 memory grid recall challenges. Remember fast.',
-    difficulty: 'Hard',
-  },
-  {
-    type: 'word',
-    icon: '📝',
-    name: 'Word Vault',
-    description: '10 word analogies, associations, synonyms, and antonyms.',
-    difficulty: 'Easy',
-  },
-  {
-    type: 'world',
-    icon: '🌍',
-    name: 'World Vault',
-    description: '10 country, capital, region, and geography puzzles.',
-    difficulty: 'Easy',
-  },
-];
 
 function difficultyColor(
   diff: 'Easy' | 'Medium' | 'Hard',
@@ -100,7 +55,8 @@ export function VaultSelectScreen(): React.ReactElement {
 
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<ThemeConfig | null>(null);
-  const [stats, setStats] = useState<AppStats | null>(null);
+  const [progress, setProgress] = useState<VaultProgress | null>(null);
+  const [refreshingData, setRefreshingData] = useState(false);
 
   const colors = theme ?? DEFAULT_COLORS;
 
@@ -109,33 +65,45 @@ export function VaultSelectScreen(): React.ReactElement {
       let active = true;
       (async () => {
         try {
-          const [settings, loadedStats] = await Promise.all([
+          const [loadedSettings, loadedProgress] = await Promise.all([
             getSettings(),
-            getStats(),
+            getVaultProgress(),
           ]);
           if (!active) return;
-          setTheme(getTheme(settings.selectedThemeId));
-          setStats(loadedStats);
+          setTheme(getTheme(loadedSettings.selectedThemeId));
+          setProgress(loadedProgress);
+          setRefreshingData(true);
+          refreshPuzzleDataIfNeeded()
+            .then(async ({ word, world }) => {
+              if (!active || !word.success || !world.success) return;
+              const updated = {
+                ...loadedSettings,
+                lastDataRefreshAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              await saveSettings(updated);
+            })
+            .finally(() => {
+              if (active) setRefreshingData(false);
+            });
         } catch {
-          // Use defaults on error
+          // Use defaults on error.
         } finally {
           if (active) setLoading(false);
         }
       })();
+
       return () => { active = false; };
     }, []),
   );
 
-  function getBestScore(type: VaultType): number {
-    const modeStats: ModeStats | undefined = stats?.modeStats?.[type];
-    return modeStats?.bestScore ?? 0;
-  }
-
+  const unlockedLevel = progress?.unlockedLevel ?? 1;
+  const levels = visibleVaultLevels(unlockedLevel);
   const styles = makeStyles(colors);
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.safeArea, styles.center]} edges={['top', 'left', 'right']}>
         <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
@@ -148,60 +116,104 @@ export function VaultSelectScreen(): React.ReactElement {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Choose a Vault</Text>
-          <Text style={styles.subtitle}>Select a challenge and crack it open</Text>
+          <Text style={styles.title}>Vault Path</Text>
+          <Text style={styles.subtitle}>Crack each vault to open the next.</Text>
+          <View style={styles.progressPill}>
+            <Text style={styles.progressPillText}>
+              Next vault: {vaultDisplayName(unlockedLevel)}
+            </Text>
+          </View>
         </View>
 
-        {/* Vault Cards */}
-        {VAULT_MODES.map((mode) => {
-          const bestScore = getBestScore(mode.type);
+        {levels.map((level) => {
+          const type = vaultTypeForLevel(level);
+          const label = vaultTypeLabel(type);
+          const difficulty = difficultyForLevel(level);
+          const locked = level > unlockedLevel;
+          const completed = Boolean(progress?.completedLevels[String(level)]);
+          const bestScore = progress?.bestScores[String(level)] ?? 0;
+
           return (
-            <View key={mode.type} style={styles.vaultCard}>
+            <View
+              key={level}
+              style={[
+                styles.vaultCard,
+                locked && styles.lockedCard,
+                completed && { borderColor: colors.success + '88' },
+              ]}
+            >
               <View style={styles.cardTopRow}>
-                <Text style={styles.cardIcon}>{mode.icon}</Text>
+                <View style={[styles.levelBadge, locked && styles.lockedBadge]}>
+                  <Text style={styles.levelBadgeText}>{level}</Text>
+                </View>
                 <View style={styles.cardTitleArea}>
-                  <Text style={styles.cardName}>{mode.name}</Text>
+                  <Text style={[styles.cardName, locked && { color: colors.textMuted }]}>
+                    {vaultDisplayName(level)}
+                  </Text>
                   <View style={[
                     styles.diffBadge,
-                    { borderColor: difficultyColor(mode.difficulty, colors) + '88' },
+                    { borderColor: difficultyColor(difficulty, colors) + '88' },
                   ]}>
                     <Text style={[
                       styles.diffText,
-                      { color: difficultyColor(mode.difficulty, colors) },
+                      { color: difficultyColor(difficulty, colors) },
                     ]}>
-                      {mode.difficulty}
+                      {difficulty}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              <Text style={styles.cardDescription}>{mode.description}</Text>
+              <Text style={styles.cardDescription}>
+                {label} challenge. Seeded puzzle mix for this vault.
+              </Text>
 
               <View style={styles.cardFooter}>
                 <View style={styles.bestScoreArea}>
-                  <Text style={styles.bestScoreLabel}>Best Score</Text>
-                  <Text style={styles.bestScoreValue}>
-                    {bestScore > 0 ? bestScore : '--'}
+                  <Text style={styles.bestScoreLabel}>
+                    {completed ? 'Best Score' : locked ? 'Unlocks After' : 'Status'}
+                  </Text>
+                  <Text style={[
+                    styles.bestScoreValue,
+                    locked && { color: colors.textMuted },
+                    completed && { color: colors.success },
+                  ]}>
+                    {completed ? bestScore : locked ? vaultDisplayName(level - 1) : 'Ready'}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.playButton}
+                  style={[
+                    styles.playButton,
+                    locked && styles.lockedButton,
+                    completed && { backgroundColor: colors.surface, borderColor: colors.success + '88' },
+                  ]}
                   onPress={() =>
                     navigation.navigate('Game', {
-                      vaultType: mode.type,
+                      vaultType: type,
                       isDaily: false,
+                      vaultLevel: level,
                     })
                   }
                   activeOpacity={0.85}
+                  disabled={locked}
                 >
-                  <Text style={styles.playButtonText}>Play</Text>
+                  <Text style={[
+                    styles.playButtonText,
+                    completed && { color: colors.success },
+                    locked && { color: colors.textMuted },
+                  ]}>
+                    {locked ? 'Locked' : completed ? 'Replay' : 'Play'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           );
         })}
+
+        {refreshingData && (
+          <Text style={styles.refreshNote}>Refreshing puzzle data...</Text>
+        )}
 
         <View style={styles.adSpacer} />
       </ScrollView>
@@ -215,6 +227,10 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
     safeArea: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    center: {
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     scroll: {
       flex: 1,
@@ -237,22 +253,55 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
       color: colors.textMuted,
       marginTop: 4,
     },
+    progressPill: {
+      alignSelf: 'flex-start',
+      marginTop: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.accent + '88',
+      backgroundColor: colors.accent + '22',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    progressPillText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.accent,
+    },
     vaultCard: {
       backgroundColor: colors.surface,
-      borderRadius: 14,
+      borderRadius: 10,
       padding: 16,
-      marginBottom: 14,
+      marginBottom: 12,
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    lockedCard: {
+      opacity: 0.62,
     },
     cardTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 8,
     },
-    cardIcon: {
-      fontSize: 30,
+    levelBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
       marginRight: 12,
+      backgroundColor: colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    lockedBadge: {
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    levelBadgeText: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: '#fff',
     },
     cardTitleArea: {
       flex: 1,
@@ -286,32 +335,47 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 12,
     },
     bestScoreArea: {
-      flexDirection: 'column',
+      flex: 1,
     },
     bestScoreLabel: {
       fontSize: 11,
       color: colors.textMuted,
     },
     bestScoreValue: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '800',
       color: colors.accent,
+      marginTop: 2,
     },
     playButton: {
       backgroundColor: colors.accent,
-      borderRadius: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.accent,
       paddingVertical: 12,
-      paddingHorizontal: 28,
-      minHeight: 52,
+      paddingHorizontal: 22,
+      minHeight: 48,
+      minWidth: 96,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    lockedButton: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
     },
     playButtonText: {
       fontSize: 15,
       fontWeight: '700',
       color: '#fff',
+    },
+    refreshNote: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 4,
     },
     adSpacer: {
       height: 8,

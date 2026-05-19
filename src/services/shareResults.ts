@@ -1,5 +1,6 @@
 import { Share } from 'react-native';
 import type { VaultAttempt } from '../types';
+import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
 
 function vaultTypeName(type: string): string {
   switch (type) {
@@ -15,7 +16,9 @@ function vaultTypeName(type: string): string {
 }
 
 export function buildShareText(attempt: VaultAttempt): string {
-  const name = vaultTypeName(attempt.vaultType);
+  const name = attempt.vaultLevel
+    ? `${vaultDisplayName(attempt.vaultLevel)} - ${vaultTypeLabel(attempt.vaultType)}`
+    : vaultTypeName(attempt.vaultType);
   const accuracy = Math.round(attempt.accuracy);
   return (
     `I cracked a vault in MindVault!\n\n` +

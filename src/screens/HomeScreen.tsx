@@ -17,6 +17,7 @@ import {
   getDailyProgress,
 } from '../storage/storage';
 import { getTheme } from '../theme';
+import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
 import { formatDateDisplay } from '../utils/date';
 import { getTodayKey } from '../utils/date';
 import type { AppSettings, AppStats, VaultAttempt, DailyProgress, ThemeConfig } from '../types';
@@ -44,6 +45,12 @@ function vaultTypeName(type: string): string {
     case 'daily': return 'Daily Vault';
     default: return 'Vault';
   }
+}
+
+function attemptVaultName(attempt: VaultAttempt): string {
+  return attempt.vaultLevel
+    ? `${vaultDisplayName(attempt.vaultLevel)} - ${vaultTypeLabel(attempt.vaultType)}`
+    : vaultTypeName(attempt.vaultType);
 }
 
 export function HomeScreen(): React.ReactElement {
@@ -207,7 +214,7 @@ export function HomeScreen(): React.ReactElement {
               return (
                 <View key={attempt.id} style={styles.attemptCard}>
                   <View style={styles.attemptLeft}>
-                    <Text style={styles.attemptVault}>{vaultTypeName(attempt.vaultType)}</Text>
+                    <Text style={styles.attemptVault}>{attemptVaultName(attempt)}</Text>
                     <Text style={styles.attemptDate}>{attemptDate}</Text>
                   </View>
                   <View style={styles.attemptRight}>

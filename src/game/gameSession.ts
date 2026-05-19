@@ -23,6 +23,8 @@ import {
   saveStats,
   getThemeUnlocks,
   saveThemeUnlocks,
+  getVaultProgress,
+  saveVaultProgress,
 } from '../storage/storage';
 import { getTodayKey } from '../utils/date';
 
@@ -45,10 +47,12 @@ export function createGameSession(
   vaultType: VaultType,
   puzzles: Puzzle[],
   timerMode: TimerMode,
+  options: { vaultLevel?: number } = {},
 ): GameSession {
   return {
     id: generateId(),
     vaultType,
+    vaultLevel: options.vaultLevel,
     puzzles,
     currentIndex: 0,
     score: 0,
@@ -237,6 +241,7 @@ export async function finishSession(session: GameSession): Promise<VaultAttempt>
   const attempt: VaultAttempt = {
     id: generateId(),
     vaultType: session.vaultType,
+    vaultLevel: session.vaultLevel,
     startedAt: session.startedAt,
     completedAt,
     score: session.score,
@@ -260,6 +265,7 @@ export async function finishSession(session: GameSession): Promise<VaultAttempt>
     const stats = await getStats();
     const updatedStats = updateStatsWithAttempt(stats, attempt);
     await saveStats(updatedStats);
+    await updateVaultProgressWithAttempt(attempt);
 
     // Check theme unlocks
     await checkAndUpdateThemeUnlocks(updatedStats, attempt);
@@ -273,6 +279,28 @@ export async function finishSession(session: GameSession): Promise<VaultAttempt>
 // ─────────────────────────────────────────────────────────────────────────────
 // Stats update helper
 // ─────────────────────────────────────────────────────────────────────────────
+
+async function updateVaultProgressWithAttempt(attempt: VaultAttempt): Promise<void> {
+  if (attempt.isDaily || !attempt.vaultLevel || attempt.vaultLevel < 1) return;
+
+  const progress = await getVaultProgress();
+  const levelKey = String(attempt.vaultLevel);
+  const bestScore = Math.max(progress.bestScores[levelKey] ?? 0, attempt.score);
+
+  await saveVaultProgress({
+    ...progress,
+    unlockedLevel: Math.max(progress.unlockedLevel ?? 1, attempt.vaultLevel + 1),
+    completedLevels: {
+      ...progress.completedLevels,
+      [levelKey]: true,
+    },
+    bestScores: {
+      ...progress.bestScores,
+      [levelKey]: bestScore,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+}
 
 function updateStatsWithAttempt(stats: AppStats, attempt: VaultAttempt): AppStats {
   const now = new Date().toISOString();

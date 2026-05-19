@@ -1,4 +1,5 @@
 import type { AppStats, VaultAttempt, AppSettings, DailyProgress, ThemeUnlocks } from '../types';
+import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
 
 export interface ExportData {
   appName: string;
@@ -22,6 +23,12 @@ function vaultTypeName(type: string): string {
     case 'daily':   return 'Daily Vault';
     default:        return type;
   }
+}
+
+function attemptVaultName(attempt: VaultAttempt): string {
+  return attempt.vaultLevel
+    ? `${vaultDisplayName(attempt.vaultLevel)} - ${vaultTypeLabel(attempt.vaultType)}`
+    : vaultTypeName(attempt.vaultType);
 }
 
 export function buildExportData(params: {
@@ -100,7 +107,7 @@ export function exportToText(data: ExportData): string {
       })();
       const attemptAccuracy = Math.round(a.accuracy);
       lines.push(
-        `${i + 1}. ${vaultTypeName(a.vaultType)} | Score: ${a.score} | ` +
+        `${i + 1}. ${attemptVaultName(a)} | Score: ${a.score} | ` +
         `Accuracy: ${attemptAccuracy}% | Rank: ${a.vaultRank} | Date: ${attemptDate}`,
       );
     }

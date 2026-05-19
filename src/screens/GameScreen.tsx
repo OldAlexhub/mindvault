@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { AdBanner } from '../components/AdBanner';
 import { getSettings } from '../storage/storage';
 import { getTheme } from '../theme';
 import { getDailyPuzzles } from '../game/dailyVault';
-import { generatePuzzlesForVault } from '../game/puzzleGenerator';
+import { generatePuzzlesForVaultAsync } from '../game/puzzleGenerator';
+import { vaultDisplayName, vaultSeedForLevel, vaultTypeForLevel, vaultTypeLabel } from '../game/vaultProgression';
+import { refreshPuzzleDataIfNeeded } from '../services/publicDataRefresh';
 import {
   createGameSession,
   submitAnswer,
@@ -250,7 +253,7 @@ function MemoryPuzzleUI({
 export function GameScreen(): React.ReactElement {
   const navigation = useNavigation<GameNavProp>();
   const route = useRoute<GameRouteProp>();
-  const { vaultType, isDaily = false } = route.params ?? {};
+  const { vaultType, isDaily = false, vaultLevel } = route.params ?? {};
 
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<ThemeConfig | null>(null);
@@ -290,8 +293,22 @@ export function GameScreen(): React.ReactElement {
         timerDurationRef.current = timerDurationSec;
         vibrationRef.current = loadedSettings.vibrationEnabled;
 
-        const puzzles = isDaily ? getDailyPuzzles() : generatePuzzlesForVault(vaultType);
-        const newSession = createGameSession(vaultType, puzzles, timerMode);
+        const regularVaultType = vaultLevel ? vaultTypeForLevel(vaultLevel) : vaultType;
+        const effectiveVaultType = isDaily ? vaultType : regularVaultType;
+        if (!isDaily) {
+          const refreshAttempt = refreshPuzzleDataIfNeeded().catch(() => null);
+          await Promise.race([
+            refreshAttempt,
+            new Promise<void>((resolve) => setTimeout(() => resolve(), 2500)),
+          ]);
+        }
+
+        const puzzles = isDaily
+          ? getDailyPuzzles()
+          : await generatePuzzlesForVaultAsync(effectiveVaultType, vaultLevel ? vaultSeedForLevel(vaultLevel) : undefined);
+        const newSession = createGameSession(effectiveVaultType, puzzles, timerMode, {
+          vaultLevel: isDaily ? undefined : vaultLevel,
+        });
 
         if (!active) return;
         setSettings(loadedSettings);
@@ -499,142 +516,147 @@ export function GameScreen(): React.ReactElement {
   const timerBarColor = timeLeft <= 3 ? colors.error : colors.accent;
   const isMemory = currentPuzzle.type === 'memory';
 
-  const vaultName = (() => {
-    switch (session.vaultType) {
-      case 'quick': return 'Quick Vault';
-      case 'pattern': return 'Pattern Vault';
-      case 'number': return 'Number Vault';
-      case 'memory': return 'Memory Vault';
-      case 'word': return 'Word Vault';
-      case 'world': return 'World Vault';
-      case 'daily': return 'Daily Vault';
-      default: return 'Vault';
-    }
-  })();
+  const vaultName = session.vaultLevel
+    ? `${vaultDisplayName(session.vaultLevel)} - ${vaultTypeLabel(session.vaultType)}`
+    : (() => {
+      switch (session.vaultType) {
+        case 'quick': return 'Quick Vault';
+        case 'pattern': return 'Pattern Vault';
+        case 'number': return 'Number Vault';
+        case 'memory': return 'Memory Vault';
+        case 'word': return 'Word Vault';
+        case 'world': return 'World Vault';
+        case 'daily': return 'Daily Vault';
+        default: return 'Vault';
+      }
+    })();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.vaultName}>{vaultName}</Text>
-          <Text style={styles.puzzleCounter}>
-            Puzzle {currentNum} of {totalPuzzles}
-          </Text>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={styles.scoreBox}>
-            <Text style={styles.scoreLabel}>Score</Text>
-            <Text style={styles.scoreValue}>{session.score}</Text>
+      <View style={styles.gameContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.vaultName}>{vaultName}</Text>
+            <Text style={styles.puzzleCounter}>
+              Puzzle {currentNum} of {totalPuzzles}
+            </Text>
           </View>
-          <TouchableOpacity
-            style={styles.quitButton}
-            onPress={handleQuit}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quitButtonText}>X</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <View style={styles.scoreBox}>
+              <Text style={styles.scoreLabel}>Score</Text>
+              <Text style={styles.scoreValue}>{session.score}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.quitButton}
+              onPress={handleQuit}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.quitButtonText}>X</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Timer Bar */}
-      <View style={styles.timerBarBg}>
-        <Animated.View
-          style={[
-            styles.timerBarFill,
-            {
-              backgroundColor: timerBarColor,
-              width: timerBarAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-            },
-          ]}
-        />
-      </View>
-      <View style={styles.timerRow}>
-        <Text style={[styles.timerText, timeLeft <= 3 && { color: colors.error }]}>
-          {timeLeft}s
-        </Text>
-        {session.streak > 1 && (
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakText}>
-              Streak {session.streak}
+        {/* Timer Bar */}
+        <View style={styles.timerBarBg}>
+          <Animated.View
+            style={[
+              styles.timerBarFill,
+              {
+                backgroundColor: timerBarColor,
+                width: timerBarAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
+        <View style={styles.timerRow}>
+          <Text style={[styles.timerText, timeLeft <= 3 && { color: colors.error }]}>
+            {timeLeft}s
+          </Text>
+          {session.streak > 1 && (
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakText}>
+                Streak {session.streak}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Puzzle Prompt */}
+        <View style={styles.promptCard}>
+          {isMemory ? (
+            <Text style={styles.promptText}>Remember the highlighted cells!</Text>
+          ) : (
+            <Text style={styles.promptText}>{currentPuzzle.prompt}</Text>
+          )}
+        </View>
+
+        {/* Memory Grid or Choice Buttons */}
+        {isMemory ? (
+          <View style={styles.memoryContainer}>
+            <MemoryPuzzleUI
+              puzzle={currentPuzzle}
+              onSelect={handleAnswerPress}
+              showFeedback={showFeedback}
+              correctChoiceIndex={correctChoiceIndex}
+              selectedChoice={selectedChoice}
+              disabled={submitting || showFeedback}
+              colors={colors}
+            />
+          </View>
+        ) : (
+          <View style={styles.choicesContainer}>
+            {currentPuzzle.choices.map((choice, idx) => {
+              let borderColor = colors.border;
+              let bgColor = colors.card;
+              let textColor = colors.text;
+
+              if (showFeedback) {
+                if (idx === correctChoiceIndex) {
+                  borderColor = colors.success;
+                  bgColor = colors.success + '22';
+                  textColor = colors.success;
+                } else if (idx === selectedChoice && selectedChoice !== correctChoiceIndex) {
+                  borderColor = colors.error;
+                  bgColor = colors.error + '22';
+                  textColor = colors.error;
+                }
+              } else if (selectedChoice === idx) {
+                borderColor = colors.accent;
+                bgColor = colors.accent + '22';
+              }
+
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.choiceButton, { borderColor, backgroundColor: bgColor }]}
+                  onPress={() => handleAnswerPress(idx)}
+                  activeOpacity={0.8}
+                  disabled={showFeedback || submitting}
+                >
+                  <Text style={[styles.choiceText, { color: textColor }]}>{choice}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Feedback overlay */}
+        {showFeedback && !isMemory && (
+          <View style={styles.feedbackRow}>
+            <Text style={[
+              styles.feedbackText,
+              { color: feedbackCorrect ? colors.success : colors.error },
+            ]}>
+              {feedbackCorrect ? 'Correct!' : 'Incorrect'}
             </Text>
           </View>
         )}
       </View>
-
-      {/* Puzzle Prompt */}
-      <View style={styles.promptCard}>
-        {isMemory ? (
-          <Text style={styles.promptText}>Remember the highlighted cells!</Text>
-        ) : (
-          <Text style={styles.promptText}>{currentPuzzle.prompt}</Text>
-        )}
-      </View>
-
-      {/* Memory Grid or Choice Buttons */}
-      {isMemory ? (
-        <View style={styles.memoryContainer}>
-          <MemoryPuzzleUI
-            puzzle={currentPuzzle}
-            onSelect={handleAnswerPress}
-            showFeedback={showFeedback}
-            correctChoiceIndex={correctChoiceIndex}
-            selectedChoice={selectedChoice}
-            disabled={submitting || showFeedback}
-            colors={colors}
-          />
-        </View>
-      ) : (
-        <View style={styles.choicesContainer}>
-          {currentPuzzle.choices.map((choice, idx) => {
-            let borderColor = colors.border;
-            let bgColor = colors.card;
-            let textColor = colors.text;
-
-            if (showFeedback) {
-              if (idx === correctChoiceIndex) {
-                borderColor = colors.success;
-                bgColor = colors.success + '22';
-                textColor = colors.success;
-              } else if (idx === selectedChoice && selectedChoice !== correctChoiceIndex) {
-                borderColor = colors.error;
-                bgColor = colors.error + '22';
-                textColor = colors.error;
-              }
-            } else if (selectedChoice === idx) {
-              borderColor = colors.accent;
-              bgColor = colors.accent + '22';
-            }
-
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={[styles.choiceButton, { borderColor, backgroundColor: bgColor }]}
-                onPress={() => handleAnswerPress(idx)}
-                activeOpacity={0.8}
-                disabled={showFeedback || submitting}
-              >
-                <Text style={[styles.choiceText, { color: textColor }]}>{choice}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Feedback overlay */}
-      {showFeedback && !isMemory && (
-        <View style={styles.feedbackRow}>
-          <Text style={[
-            styles.feedbackText,
-            { color: feedbackCorrect ? colors.success : colors.error },
-          ]}>
-            {feedbackCorrect ? 'Correct!' : 'Incorrect'}
-          </Text>
-        </View>
-      )}
+      <AdBanner />
     </SafeAreaView>
   );
 }
@@ -644,6 +666,9 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
     safeArea: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    gameContent: {
+      flex: 1,
     },
     header: {
       flexDirection: 'row',
@@ -761,6 +786,7 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
     },
     choicesContainer: {
       paddingHorizontal: 16,
+      paddingBottom: 8,
       gap: 10,
     },
     choiceButton: {

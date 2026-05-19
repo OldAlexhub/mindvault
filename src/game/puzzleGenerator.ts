@@ -1,4 +1,4 @@
-import type { Puzzle, PuzzleType, VaultType } from '../types';
+import type { CachedWordData, CachedWorldData, Country, Puzzle, PuzzleType, VaultType, WordRelationship } from '../types';
 import {
   BUNDLED_WORD_ANALOGIES,
   BUNDLED_WORD_ASSOCIATIONS,
@@ -7,6 +7,7 @@ import {
 } from '../data/bundledWords';
 import { BUNDLED_COUNTRIES } from '../data/bundledWorldData';
 import { generateId } from '../utils/validation';
+import { getWordDataForPuzzles, getWorldDataForPuzzles } from '../services/publicDataRefresh';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Seeded random number generator (LCG)
@@ -39,6 +40,11 @@ function pickN<T>(arr: T[], n: number, rng: () => number): T[] {
 
 function randInt(min: number, max: number, rng: () => number): number {
   return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+interface PuzzleDataSources {
+  wordData?: CachedWordData;
+  worldData?: CachedWorldData;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -477,7 +483,85 @@ function generateLogicPuzzles(count: number, rng: () => number): Puzzle[] {
 
 type WordPuzzleSubtype = 'analogy' | 'association' | 'synonym' | 'antonym';
 
-function generateWordPuzzles(count: number, rng: () => number): Puzzle[] {
+function normalizeWord(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function titleCaseWord(value: string): string {
+  return value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
+function relationshipChoices(
+  relationship: WordRelationship,
+  allWords: string[],
+  rng: () => number,
+): { choices: string[]; correctIndex: number; correct: string } | null {
+  const correct = normalizeWord(relationship.related[0] ?? '');
+  if (!correct) return null;
+
+  const forbidden = new Set([
+    normalizeWord(relationship.word),
+    ...relationship.related.map(normalizeWord),
+  ]);
+  const distractors = shuffle(
+    allWords
+      .map(normalizeWord)
+      .filter((word) => word && !forbidden.has(word)),
+    rng,
+  ).slice(0, 3);
+
+  const choices = dedupeChoices(
+    [correct, ...distractors].map(titleCaseWord),
+    ['Bright', 'Quiet', 'Simple', 'Strong', 'Gentle', 'Rapid'],
+  );
+  if (choices.length < 4) return null;
+  const shuffled = shuffle(choices, rng);
+  const correctIndex = shuffled.indexOf(titleCaseWord(correct));
+  return { choices: shuffled, correctIndex, correct };
+}
+
+function generateApiWordPuzzles(count: number, rng: () => number, wordData: CachedWordData): Puzzle[] {
+  const relationships = shuffle(
+    wordData.relationships.filter((item) => item.related.length > 0),
+    rng,
+  );
+  const allWords = wordData.words.length > 0 ? wordData.words : relationships.flatMap((item) => [item.word, ...item.related]);
+  const puzzles: Puzzle[] = [];
+
+  for (const relationship of relationships) {
+    if (puzzles.length >= count) break;
+    if (relationship.type === 'association') continue;
+
+    const built = relationshipChoices(relationship, allWords, rng);
+    if (!built || built.correctIndex < 0) continue;
+
+    const subject = titleCaseWord(normalizeWord(relationship.word));
+    const prompt = relationship.type === 'antonym'
+      ? `Which word is the opposite of "${subject}"?`
+      : `Which word is closest in meaning to "${subject}"?`;
+    const explanation = relationship.type === 'antonym'
+      ? `"${titleCaseWord(built.correct)}" is an opposite of "${subject}".`
+      : `"${titleCaseWord(built.correct)}" is related in meaning to "${subject}".`;
+
+    puzzles.push({
+      id: generateId(),
+      type: 'word' as PuzzleType,
+      prompt,
+      choices: built.choices,
+      correctIndex: built.correctIndex,
+      explanation,
+    });
+  }
+
+  return puzzles;
+}
+
+function generateWordPuzzles(count: number, rng: () => number, wordData?: CachedWordData): Puzzle[] {
+  if (wordData?.source !== 'bundled' && wordData?.relationships?.length) {
+    const apiPuzzles = generateApiWordPuzzles(count, rng, wordData);
+    if (apiPuzzles.length >= count) return apiPuzzles.slice(0, count);
+  }
+
   const subtypes: WordPuzzleSubtype[] = ['analogy', 'association', 'synonym', 'antonym'];
   const puzzles: Puzzle[] = [];
 
@@ -555,8 +639,20 @@ function generateWordPuzzles(count: number, rng: () => number): Puzzle[] {
 
 type WorldPuzzleSubtype = 'capital' | 'region' | 'population' | 'flag';
 
-function generateWorldPuzzles(count: number, rng: () => number): Puzzle[] {
-  const countries = shuffle([...BUNDLED_COUNTRIES], rng);
+function validCountries(worldData?: CachedWorldData): Country[] {
+  const source = worldData?.countries?.length ? worldData.countries : BUNDLED_COUNTRIES;
+  return source.filter((country) =>
+    country.name &&
+    country.capital &&
+    country.capital !== 'N/A' &&
+    country.region &&
+    country.population > 0
+  );
+}
+
+function generateWorldPuzzles(count: number, rng: () => number, worldData?: CachedWorldData): Puzzle[] {
+  const baseCountries = validCountries(worldData);
+  const countries = shuffle([...baseCountries], rng);
   const subtypes: WorldPuzzleSubtype[] = ['capital', 'region', 'population', 'flag'];
   const puzzles: Puzzle[] = [];
   let ci = 0;
@@ -584,7 +680,7 @@ function generateWorldPuzzles(count: number, rng: () => number): Puzzle[] {
       const target = countries[ci % countries.length];
       ci++;
       // Build 4 distinct region options
-      const allRegions = [...new Set(BUNDLED_COUNTRIES.map((c) => c.region))];
+      const allRegions = [...new Set(baseCountries.map((c) => c.region))];
       const correctRegion = target.region;
       const wrongRegions = shuffle(allRegions.filter((r) => r !== correctRegion), rng).slice(0, 3);
       if (wrongRegions.length < 3) continue;
@@ -616,7 +712,8 @@ function generateWorldPuzzles(count: number, rng: () => number): Puzzle[] {
       });
     } else {
       // flag
-      const group = pickN(countries, 4, rng);
+      const countriesWithFlags = countries.filter((c) => c.flagEmoji && !c.flagEmoji.startsWith('http'));
+      const group = pickN(countriesWithFlags.length >= 4 ? countriesWithFlags : countries, 4, rng);
       if (group.length < 4) continue;
       const target = group[0];
       const names = group.map((c) => c.name);
@@ -640,7 +737,11 @@ function generateWorldPuzzles(count: number, rng: () => number): Puzzle[] {
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function generatePuzzlesForVault(vaultType: VaultType, seed?: number): Puzzle[] {
+export function generatePuzzlesForVault(
+  vaultType: VaultType,
+  seed?: number,
+  dataSources: PuzzleDataSources = {},
+): Puzzle[] {
   const rng = seed !== undefined ? seededRandom(seed) : Math.random;
 
   switch (vaultType) {
@@ -654,18 +755,18 @@ export function generatePuzzlesForVault(vaultType: VaultType, seed?: number): Pu
       return generateMemoryPuzzles(8, rng);
 
     case 'word':
-      return generateWordPuzzles(10, rng);
+      return generateWordPuzzles(10, rng, dataSources.wordData);
 
     case 'world':
-      return generateWorldPuzzles(10, rng);
+      return generateWorldPuzzles(10, rng, dataSources.worldData);
 
     case 'quick': {
       // Mixed: 2 pattern + 2 number + 2 memory + 2 word + 2 world
       const pattern = generatePatternPuzzles(2, rng);
       const number = generateNumberPuzzles(2, rng);
       const memory = generateMemoryPuzzles(2, rng);
-      const word = generateWordPuzzles(2, rng);
-      const world = generateWorldPuzzles(2, rng);
+      const word = generateWordPuzzles(2, rng, dataSources.wordData);
+      const world = generateWorldPuzzles(2, rng, dataSources.worldData);
       const all = [...pattern, ...number, ...memory, ...word, ...world];
       return shuffle(all, rng);
     }
@@ -678,8 +779,8 @@ export function generatePuzzlesForVault(vaultType: VaultType, seed?: number): Pu
       const number = generateNumberPuzzles(2, rng2);
       const memory = generateMemoryPuzzles(2, rng2);
       const logic = generateLogicPuzzles(2, rng2);
-      const word = generateWordPuzzles(2, rng2);
-      const world = generateWorldPuzzles(2, rng2);
+      const word = generateWordPuzzles(2, rng2, dataSources.wordData);
+      const world = generateWorldPuzzles(2, rng2, dataSources.worldData);
       const all = [...pattern, ...number, ...memory, ...logic, ...word, ...world];
       return shuffle(all, rng2);
     }
@@ -687,4 +788,13 @@ export function generatePuzzlesForVault(vaultType: VaultType, seed?: number): Pu
     default:
       return generatePatternPuzzles(10, rng);
   }
+}
+
+export async function generatePuzzlesForVaultAsync(vaultType: VaultType, seed?: number): Promise<Puzzle[]> {
+  const [wordData, worldData] = await Promise.all([
+    getWordDataForPuzzles(),
+    getWorldDataForPuzzles(),
+  ]);
+
+  return generatePuzzlesForVault(vaultType, seed, { wordData, worldData });
 }

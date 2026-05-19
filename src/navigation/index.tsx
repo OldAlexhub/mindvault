@@ -22,13 +22,13 @@ import type { VaultType, VaultAttempt } from '../types';
 
 export type VaultsStackParamList = {
   VaultSelect: undefined;
-  Game: { vaultType: VaultType; isDaily?: boolean; dailyDate?: string };
+  Game: { vaultType: VaultType; isDaily?: boolean; dailyDate?: string; vaultLevel?: number };
   Results: { attempt: VaultAttempt };
 };
 
 export type DailyStackParamList = {
   DailyVault: undefined;
-  Game: { vaultType: VaultType; isDaily?: boolean; dailyDate?: string };
+  Game: { vaultType: VaultType; isDaily?: boolean; dailyDate?: string; vaultLevel?: number };
   Results: { attempt: VaultAttempt };
 };
 

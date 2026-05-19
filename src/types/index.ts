@@ -40,6 +40,13 @@ export interface AppStats {
   updatedAt: string;
 }
 
+export interface VaultProgress {
+  unlockedLevel: number;
+  completedLevels: Record<string, boolean>;
+  bestScores: Record<string, number>;
+  updatedAt: string;
+}
+
 export interface PuzzleSummary {
   puzzleId: string;
   puzzleType: PuzzleType;
@@ -51,6 +58,7 @@ export interface PuzzleSummary {
 export interface VaultAttempt {
   id: string;
   vaultType: VaultType;
+  vaultLevel?: number;
   startedAt: string;
   completedAt: string;
   score: number;
@@ -121,6 +129,7 @@ export interface Puzzle {
 export interface GameSession {
   id: string;
   vaultType: VaultType;
+  vaultLevel?: number;
   puzzles: Puzzle[];
   currentIndex: number;
   score: number;

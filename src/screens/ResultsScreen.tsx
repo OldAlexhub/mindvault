@@ -13,6 +13,7 @@ import { AdBanner } from '../components/AdBanner';
 import { getSettings, getStats } from '../storage/storage';
 import { getTheme } from '../theme';
 import { shareResult } from '../services/shareResults';
+import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
 import type { ThemeConfig, VaultAttempt, AppStats } from '../types';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { VaultsStackParamList } from '../navigation';
@@ -111,6 +112,9 @@ export function ResultsScreen(): React.ReactElement {
   const cracked = accuracy >= 60;
   const rankColor = getRankColor(attempt.vaultRank, colors);
   const isNewBest = stats != null && attempt.score >= stats.bestVaultScore && attempt.score > 0;
+  const displayVaultName = attempt.vaultLevel
+    ? `${vaultDisplayName(attempt.vaultLevel)} - ${vaultTypeLabel(attempt.vaultType)}`
+    : vaultTypeName(attempt.vaultType);
 
   const styles = makeStyles(colors);
 
@@ -143,6 +147,7 @@ export function ResultsScreen(): React.ReactElement {
       vaultType: attempt.vaultType,
       isDaily,
       dailyDate: attempt.dailyDate,
+      vaultLevel: attempt.vaultLevel,
     });
   }
 
@@ -158,7 +163,7 @@ export function ResultsScreen(): React.ReactElement {
           <Text style={[styles.statusTitle, { color: cracked ? colors.success : colors.textMuted }]}>
             {cracked ? 'Vault Cracked! 🔓' : 'Vault Failed 🔒'}
           </Text>
-          <Text style={styles.vaultNameText}>{vaultTypeName(attempt.vaultType)}</Text>
+          <Text style={styles.vaultNameText}>{displayVaultName}</Text>
         </View>
 
         {/* New Best Badge */}

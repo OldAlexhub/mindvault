@@ -1,4 +1,4 @@
-import type { AppSettings, AppStats, DailyProgress, ModeStats, ThemeUnlocks } from '../types';
+import type { AppSettings, AppStats, DailyProgress, ModeStats, ThemeUnlocks, VaultProgress } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Storage key constants
@@ -9,6 +9,7 @@ export const KEYS = {
   STATS: 'mindvault:stats',
   ATTEMPTS: 'mindvault:attempts',
   DAILY: 'mindvault:daily',
+  VAULT_PROGRESS: 'mindvault:vaultProgress',
   THEMES: 'mindvault:themes',
   CACHE_WORDS: 'mindvault:cache:words',
   CACHE_WORLD: 'mindvault:cache:world',
@@ -66,6 +67,13 @@ export const DEFAULT_DAILY: DailyProgress = {
   currentStreak: 0,
   longestStreak: 0,
   dailyScores: {},
+  updatedAt: new Date().toISOString(),
+};
+
+export const DEFAULT_VAULT_PROGRESS: VaultProgress = {
+  unlockedLevel: 1,
+  completedLevels: {},
+  bestScores: {},
   updatedAt: new Date().toISOString(),
 };
 

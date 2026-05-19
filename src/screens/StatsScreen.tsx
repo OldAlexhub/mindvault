@@ -19,16 +19,23 @@ import { shareStatsSummary } from '../services/shareResults';
 import { formatDateDisplay } from '../utils/date';
 import type { ThemeConfig, AppStats, VaultAttempt, DailyProgress } from '../types';
 
-const DEFAULT_COLORS = {
+const DEFAULT_COLORS: ThemeConfig = {
+  id: 'classic',
+  name: 'Classic',
+  description: '',
+  unlockCondition: '',
   background: '#0f0f1a',
   surface: '#16162a',
   card: '#1e1e35',
   accent: '#4f8ef7',
+  accentSecondary: '#7aa8ff',
   text: '#f0f0ff',
   textMuted: '#9999bb',
+  textDim: '#777799',
   border: '#2a2a45',
   success: '#4caf73',
   error: '#e05555',
+  warning: '#f0a030',
 };
 
 function vaultTypeName(type: string): string {

@@ -7,12 +7,14 @@ import type {
   ThemeUnlocks,
   CachedWordData,
   CachedWorldData,
+  VaultProgress,
 } from '../types';
 import {
   KEYS,
   DEFAULT_SETTINGS,
   DEFAULT_STATS,
   DEFAULT_DAILY,
+  DEFAULT_VAULT_PROGRESS,
   DEFAULT_THEMES,
 } from './defaults';
 
@@ -36,15 +38,16 @@ function safeParse<T>(raw: string | null): T | null {
  * Deep-merges `defaults` with `stored` so that missing fields are filled in
  * without overwriting values that do exist.
  */
-function mergeWithDefaults<T extends Record<string, unknown>>(
+function mergeWithDefaults<T extends object>(
   stored: Partial<T> | null | undefined,
   defaults: T,
 ): T {
   if (!stored || typeof stored !== 'object') return { ...defaults };
-  const result: Record<string, unknown> = { ...defaults };
-  for (const key of Object.keys(stored)) {
-    if (stored[key] !== undefined && stored[key] !== null) {
-      result[key] = stored[key];
+  const result: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };
+  const storedRecord = stored as Record<string, unknown>;
+  for (const key of Object.keys(storedRecord)) {
+    if (storedRecord[key] !== undefined && storedRecord[key] !== null) {
+      result[key] = storedRecord[key];
     }
   }
   return result as T;
@@ -163,6 +166,39 @@ export async function saveDailyProgress(progress: DailyProgress): Promise<boolea
 // Theme Unlocks
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ---------------------------------------------------------------------------
+// Vault Progress
+// ---------------------------------------------------------------------------
+
+export async function getVaultProgress(): Promise<VaultProgress> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.VAULT_PROGRESS);
+    const parsed = safeParse<Partial<VaultProgress>>(raw);
+    const merged = mergeWithDefaults<VaultProgress>(parsed, DEFAULT_VAULT_PROGRESS);
+    if (!merged.unlockedLevel || merged.unlockedLevel < 1) {
+      merged.unlockedLevel = 1;
+    }
+    if (!merged.completedLevels || typeof merged.completedLevels !== 'object') {
+      merged.completedLevels = {};
+    }
+    if (!merged.bestScores || typeof merged.bestScores !== 'object') {
+      merged.bestScores = {};
+    }
+    return merged;
+  } catch {
+    return { ...DEFAULT_VAULT_PROGRESS, completedLevels: {}, bestScores: {} };
+  }
+}
+
+export async function saveVaultProgress(progress: VaultProgress): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(KEYS.VAULT_PROGRESS, JSON.stringify(progress));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getThemeUnlocks(): Promise<ThemeUnlocks> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.THEMES);
@@ -249,12 +285,13 @@ export async function resetAllData(): Promise<boolean> {
 
 export async function exportAllData(): Promise<string> {
   try {
-    const [settings, stats, attempts, daily, themes, wordCache, worldCache] =
+    const [settings, stats, attempts, daily, vaultProgress, themes, wordCache, worldCache] =
       await Promise.all([
         getSettings(),
         getStats(),
         getAttempts(),
         getDailyProgress(),
+        getVaultProgress(),
         getThemeUnlocks(),
         getCachedWordData(),
         getCachedWorldData(),
@@ -267,6 +304,7 @@ export async function exportAllData(): Promise<string> {
       stats,
       attempts,
       daily,
+      vaultProgress,
       themes,
       wordCache,
       worldCache,
