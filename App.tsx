@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { StatusBar } from 'react-native';
 import mobileAds from 'react-native-google-mobile-ads';
 import RootNavigator from './src/navigation';
 import { initNotifications } from './src/services/notifications';
@@ -16,9 +15,6 @@ export default function App() {
   }, []);
 
   return (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor="#0f0f1a" />
-      <RootNavigator />
-    </>
+    <RootNavigator />
   );
 }

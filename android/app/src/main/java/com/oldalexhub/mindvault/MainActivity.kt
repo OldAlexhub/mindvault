@@ -1,6 +1,5 @@
 package com.oldalexhub.mindvault
 
-import android.os.Build
 import android.os.Bundle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.facebook.react.ReactActivity
