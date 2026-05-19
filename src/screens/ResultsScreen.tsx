@@ -13,7 +13,12 @@ import { AdBanner } from '../components/AdBanner';
 import { getSettings, getStats } from '../storage/storage';
 import { getTheme } from '../theme';
 import { shareResult } from '../services/shareResults';
-import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
+import {
+  meetsVaultUnlockRequirement,
+  VAULT_UNLOCK_ACCURACY,
+  vaultDisplayName,
+  vaultTypeLabel,
+} from '../game/vaultProgression';
 import type { ThemeConfig, VaultAttempt, AppStats } from '../types';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { VaultsStackParamList } from '../navigation';
@@ -109,7 +114,7 @@ export function ResultsScreen(): React.ReactElement {
   }
 
   const accuracy = Math.round(attempt.accuracy);
-  const cracked = accuracy >= 60;
+  const cracked = attempt.isDaily ? accuracy >= 60 : meetsVaultUnlockRequirement(accuracy);
   const rankColor = getRankColor(attempt.vaultRank, colors);
   const isNewBest = stats != null && attempt.score >= stats.bestVaultScore && attempt.score > 0;
   const displayVaultName = attempt.vaultLevel
@@ -164,6 +169,11 @@ export function ResultsScreen(): React.ReactElement {
             {cracked ? 'Vault Cracked! 🔓' : 'Vault Failed 🔒'}
           </Text>
           <Text style={styles.vaultNameText}>{displayVaultName}</Text>
+          {!attempt.isDaily && (
+            <Text style={styles.unlockHint}>
+              {cracked ? 'Next vault unlocked.' : `${VAULT_UNLOCK_ACCURACY}% needed to unlock the next vault.`}
+            </Text>
+          )}
         </View>
 
         {/* New Best Badge */}
@@ -284,6 +294,12 @@ function makeStyles(colors: typeof DEFAULT_COLORS) {
       fontSize: 15,
       color: colors.textMuted,
       marginTop: 4,
+    },
+    unlockHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 6,
+      textAlign: 'center',
     },
     newBestBadge: {
       alignSelf: 'center',

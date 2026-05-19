@@ -1,5 +1,7 @@
 import type { VaultType } from '../types';
 
+export const VAULT_UNLOCK_ACCURACY = 80;
+
 const VAULT_TYPE_SEQUENCE: VaultType[] = ['quick', 'pattern', 'number', 'word', 'world', 'memory'];
 
 export function normalizeVaultLevel(level?: number): number {
@@ -45,6 +47,10 @@ export function difficultyForLevel(level: number): 'Easy' | 'Medium' | 'Hard' {
   if (normalized <= 3) return 'Easy';
   if (normalized <= 9) return 'Medium';
   return 'Hard';
+}
+
+export function meetsVaultUnlockRequirement(accuracy: number): boolean {
+  return Number.isFinite(accuracy) && accuracy >= VAULT_UNLOCK_ACCURACY;
 }
 
 export function visibleVaultLevels(unlockedLevel: number): number[] {

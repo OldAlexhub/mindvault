@@ -27,6 +27,7 @@ import {
   saveVaultProgress,
 } from '../storage/storage';
 import { getTodayKey } from '../utils/date';
+import { meetsVaultUnlockRequirement } from './vaultProgression';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Timer helper
@@ -286,14 +287,19 @@ async function updateVaultProgressWithAttempt(attempt: VaultAttempt): Promise<vo
   const progress = await getVaultProgress();
   const levelKey = String(attempt.vaultLevel);
   const bestScore = Math.max(progress.bestScores[levelKey] ?? 0, attempt.score);
+  const passed = meetsVaultUnlockRequirement(attempt.accuracy);
 
   await saveVaultProgress({
     ...progress,
-    unlockedLevel: Math.max(progress.unlockedLevel ?? 1, attempt.vaultLevel + 1),
-    completedLevels: {
-      ...progress.completedLevels,
-      [levelKey]: true,
-    },
+    unlockedLevel: passed
+      ? Math.max(progress.unlockedLevel ?? 1, attempt.vaultLevel + 1)
+      : progress.unlockedLevel ?? 1,
+    completedLevels: passed
+      ? {
+          ...progress.completedLevels,
+          [levelKey]: true,
+        }
+      : progress.completedLevels,
     bestScores: {
       ...progress.bestScores,
       [levelKey]: bestScore,

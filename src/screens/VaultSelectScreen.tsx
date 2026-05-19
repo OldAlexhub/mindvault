@@ -15,6 +15,7 @@ import { getTheme } from '../theme';
 import { refreshPuzzleDataIfNeeded } from '../services/publicDataRefresh';
 import {
   difficultyForLevel,
+  VAULT_UNLOCK_ACCURACY,
   vaultDisplayName,
   vaultTypeForLevel,
   vaultTypeLabel,
@@ -118,7 +119,7 @@ export function VaultSelectScreen(): React.ReactElement {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Vault Path</Text>
-          <Text style={styles.subtitle}>Crack each vault to open the next.</Text>
+          <Text style={styles.subtitle}>Score at least {VAULT_UNLOCK_ACCURACY}% to open the next vault.</Text>
           <View style={styles.progressPill}>
             <Text style={styles.progressPillText}>
               Next vault: {vaultDisplayName(unlockedLevel)}
@@ -172,14 +173,14 @@ export function VaultSelectScreen(): React.ReactElement {
               <View style={styles.cardFooter}>
                 <View style={styles.bestScoreArea}>
                   <Text style={styles.bestScoreLabel}>
-                    {completed ? 'Best Score' : locked ? 'Unlocks After' : 'Status'}
+                    {completed ? 'Best Score' : locked ? 'Unlocks With' : 'Status'}
                   </Text>
                   <Text style={[
                     styles.bestScoreValue,
                     locked && { color: colors.textMuted },
                     completed && { color: colors.success },
                   ]}>
-                    {completed ? bestScore : locked ? vaultDisplayName(level - 1) : 'Ready'}
+                    {completed ? bestScore : locked ? `${VAULT_UNLOCK_ACCURACY}% on ${vaultDisplayName(level - 1)}` : 'Ready'}
                   </Text>
                 </View>
                 <TouchableOpacity

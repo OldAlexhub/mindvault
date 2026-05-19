@@ -1,6 +1,10 @@
 import { Share } from 'react-native';
 import type { VaultAttempt } from '../types';
-import { vaultDisplayName, vaultTypeLabel } from '../game/vaultProgression';
+import {
+  meetsVaultUnlockRequirement,
+  vaultDisplayName,
+  vaultTypeLabel,
+} from '../game/vaultProgression';
 
 function vaultTypeName(type: string): string {
   switch (type) {
@@ -20,8 +24,9 @@ export function buildShareText(attempt: VaultAttempt): string {
     ? `${vaultDisplayName(attempt.vaultLevel)} - ${vaultTypeLabel(attempt.vaultType)}`
     : vaultTypeName(attempt.vaultType);
   const accuracy = Math.round(attempt.accuracy);
+  const passed = attempt.isDaily || meetsVaultUnlockRequirement(accuracy);
   return (
-    `I cracked a vault in MindVault!\n\n` +
+    `${passed ? 'I cracked a vault' : 'I played a vault'} in MindVault!\n\n` +
     `Vault: ${name}\n` +
     `Vault Score: ${attempt.score}\n` +
     `Accuracy: ${accuracy}%\n` +
